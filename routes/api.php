@@ -4,6 +4,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\V1\LibraryController as Library;
 use App\Http\Controllers\Api\V1\CatalogManagementController as Catalog;
+use App\Http\Controllers\Api\V1\LoanCoverController as Loans;
 
 Route::prefix('v1')->group(function (): void {
     Route::get('/health', [Library::class, 'health']);
@@ -21,7 +22,13 @@ Route::prefix('v1')->group(function (): void {
     Route::get('/members/{id}', [Catalog::class, 'member']);
     Route::post('/members', [Catalog::class, 'createMember']);
 
+    Route::put('/books/{id}/cover', [Loans::class, 'uploadCover']);
+    Route::delete('/books/{id}/cover', [Loans::class, 'removeCover']);
+    Route::get('/books/{id}/cover', [Loans::class, 'getCover']);
+
     Route::post('/loans', [Library::class, 'createLoan']);
+    Route::get('/loans', [Loans::class, 'loans']);
+    Route::get('/loans/{id}', [Loans::class, 'detail']);
     Route::get('/loans/overdue', [Library::class, 'overdue']);
     Route::post('/loans/{loanId}/items/{itemId}/return', [Library::class, 'returnItem']);
     Route::get('/reports/most-borrowed', [Library::class, 'report']);
