@@ -28,8 +28,8 @@ Route::prefix('v1')->group(function (): void {
 
     Route::post('/loans', [Library::class, 'createLoan']);
     Route::get('/loans', [Loans::class, 'loans']);
-    Route::get('/loans/{id}', [Loans::class, 'detail']);
     Route::get('/loans/overdue', [Library::class, 'overdue']);
+    Route::get('/loans/{id}', [Loans::class, 'detail']);
     Route::post('/loans/{loanId}/items/{itemId}/return', [Library::class, 'returnItem']);
     Route::get('/reports/most-borrowed', [Library::class, 'report']);
 });

@@ -28,7 +28,7 @@ final class CatalogManagementController {
     public function createBook(Request $request,BookCatalogService $service): JsonResponse {
         $role=$this->role($request,['admin']);
         $data=$request->validate(['title'=>'required|string|max:250','author'=>'required|string|max:200',
-            'isbn'=>['required','regex:/^[0-9]{13}$/D'],'category_id'=>'required|uuid|exists:library.category,id',
+            'isbn'=>['required','regex:/^[0-9]{13}$/D'],'category_id'=>'required|uuid|exists:pgsql.library.category,id',
             'total_copies'=>'required|integer|min:1']);
         $book=$service->create($role,(string)Str::uuid(),$data['title'],$data['author'],$data['isbn'],$data['category_id'],(int)$data['total_copies']);
         return response()->json($this->book($book),201);
@@ -36,7 +36,7 @@ final class CatalogManagementController {
     public function updateBook(Request $request,string $id,BookCatalogService $service): array {
         $role=$this->role($request,['admin']);
         $data=$request->validate(['title'=>'required|string|max:250','author'=>'required|string|max:200',
-            'category_id'=>'required|uuid|exists:library.category,id','total_copies'=>'required|integer|min:1']);
+            'category_id'=>'required|uuid|exists:pgsql.library.category,id','total_copies'=>'required|integer|min:1']);
         return $this->book($service->update($role,$id,$data['title'],$data['author'],$data['category_id'],(int)$data['total_copies']));
     }
     public function deleteBook(Request $request,string $id,BookCatalogService $service): \Illuminate\Http\Response {

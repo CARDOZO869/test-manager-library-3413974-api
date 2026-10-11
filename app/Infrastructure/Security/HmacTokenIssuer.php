@@ -14,12 +14,12 @@ final readonly class HmacTokenIssuer implements TokenIssuer {
         $now = time();
         $header = $this->encode(['alg'=>'HS256','typ'=>'JWT']);
         $payload = $this->encode([
-            'sub'=>$user->id,'iat'=>$now,'exp'=>$now+$expiresInSeconds,
+            'sub'=>$user->id,'role'=>$user->role,'iat'=>$now,'exp'=>$now+$expiresInSeconds,
         ]);
         $signature = $this->base64url(hash_hmac('sha256', $header.'.'.$payload, $this->secret, true));
         return $header.'.'.$payload.'.'.$signature;
     }
-    /** @return array{sub:string,iat:int,exp:int} */
+    /** @return array{sub:string,role:string,iat:int,exp:int} */
     public function verify(string $token): array {
         $parts = explode('.', $token);
         if (count($parts) !== 3) throw new DomainException('INVALID_TOKEN');
@@ -30,12 +30,13 @@ final readonly class HmacTokenIssuer implements TokenIssuer {
         if (($head['alg'] ?? null) !== 'HS256' || ($head['typ'] ?? null) !== 'JWT') throw new DomainException('INVALID_TOKEN');
         $claims = $this->decode($payload);
         if (!is_string($claims['sub'] ?? null) || $claims['sub'] === '' ||
+            !in_array($claims['role'] ?? null, ['admin','librarian'], true) ||
             !is_int($claims['iat'] ?? null) || !is_int($claims['exp'] ?? null) ||
             $claims['iat'] > time() || $claims['exp'] <= time() ||
             $claims['exp'] <= $claims['iat'] || $claims['exp'] - $claims['iat'] > 28800) {
             throw new DomainException('INVALID_TOKEN');
         }
-        return ['sub'=>$claims['sub'],'iat'=>$claims['iat'],'exp'=>$claims['exp']];
+        return ['sub'=>$claims['sub'],'role'=>$claims['role'],'iat'=>$claims['iat'],'exp'=>$claims['exp']];
     }
     private function base64url(string $data): string {
         return rtrim(strtr(base64_encode($data),'+/','-_'),'=');

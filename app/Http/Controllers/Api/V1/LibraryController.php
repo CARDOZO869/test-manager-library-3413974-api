@@ -23,14 +23,14 @@ final class LibraryController {
     private function utc(DateTimeImmutable $date): string {
         return $date->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z');
     }
-    private function book(\App\Domain\Entities\Book $book): array {
-        $category=DB::table('library.category')->where('id',$book->categoryId)->first();
+    private function book(\App\Domain\Entities\Book $book, ?array $categories = null): array {
+        $categoryName=$categories===null ? DB::table('library.category')->where('id',$book->categoryId)->value('name') : ($categories[$book->categoryId]??null);
         return ['id'=>$book->id,'title'=>$book->title,'author'=>$book->author,
-            'isbn'=>$book->isbn->value,'category'=>['id'=>$book->categoryId,'name'=>$category?->name],
+            'isbn'=>$book->isbn->value,'category'=>['id'=>$book->categoryId,'name'=>$categoryName],
             'total_copies'=>$book->totalCopies,'available_copies'=>$book->availableCopies,'cover_key'=>$book->coverKey];
     }
     private function loan(\App\Domain\Entities\Loan $loan): array {
-        $now=new DateTimeImmutable('now',new \DateTimeZone('UTC'));
+        $now=app(\App\Application\Ports\Clock::class)->now();
         return ['id'=>$loan->id,'member_id'=>$loan->memberId,'loaned_at'=>$this->utc($loan->loanedAt),
             'status'=>$loan->status($now),'items'=>array_map(fn ($i)=>[
                 'id'=>$i->id,'book_id'=>$i->bookId,'book_title'=>$i->bookTitle,'isbn'=>$i->isbn,
@@ -57,7 +57,8 @@ final class LibraryController {
         $data=$request->validate(['q'=>'nullable|string','category_id'=>'nullable|uuid','page'=>'nullable|integer|min:1','size'=>'nullable|integer|min:1|max:50']);
         $page=(int)($data['page']??1);$size=(int)($data['size']??20);
         $result=$service->search($data['q']??null,$data['category_id']??null,$page,$size);
-        return ['items'=>array_map(fn ($book)=>$this->book($book),$result['items']),'page'=>$page,'size'=>$size,'total'=>$result['total']];
+        $categories=DB::table('library.category')->pluck('name','id')->all();
+        return ['items'=>array_map(fn ($book)=>$this->book($book,$categories),$result['items']),'page'=>$page,'size'=>$size,'total'=>$result['total']];
     }
     public function bookDetail(Request $request, string $id, BookCatalogService $service): array {
         $this->actor($request,['admin','librarian']);
@@ -70,19 +71,19 @@ final class LibraryController {
         $loan=$service->execute((string)Str::uuid(),$data['member_id'],$actor->id,
             array_column($data['items'],'book_id'),
             array_map(static fn()=> (string)Str::uuid(),$data['items']),
-            new DateTimeImmutable('now',new \DateTimeZone('UTC')));
+            app(\App\Application\Ports\Clock::class)->now());
         return response()->json($this->loan($loan),201);
     }
     public function returnItem(Request $request,string $loanId,string $itemId,ReturnBookService $service): array {
         $this->actor($request,['admin','librarian']);
-        $item=$service->execute($loanId,$itemId,new DateTimeImmutable('now',new \DateTimeZone('UTC')));
+        $item=$service->execute($loanId,$itemId,app(\App\Application\Ports\Clock::class)->now());
         return ['id'=>$item->id,'book_id'=>$item->bookId,'book_title'=>$item->bookTitle,
             'isbn'=>$item->isbn,'category_name'=>$item->categoryName,'due_at'=>$this->utc($item->dueAt),
             'returned_at'=>$item->returnedAt()===null?null:$this->utc($item->returnedAt())];
     }
     public function overdue(Request $request,ListOverdueService $service): array {
         $this->actor($request,['admin','librarian']);
-        $rows=$service->execute(new DateTimeImmutable('now',new \DateTimeZone('UTC')));
+        $rows=$service->execute(app(\App\Application\Ports\Clock::class)->now());
         return ['items'=>array_map(fn($row)=>array_merge($row,['due_at'=>$this->utc($row['due_at'])]),$rows)];
     }
     public function report(Request $request,MostBorrowedReportService $service): array {

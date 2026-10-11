@@ -16,4 +16,8 @@ final class LocalCoverStorage implements CoverStorage {
         if (preg_match('~^covers/[0-9a-f-]{36}\.(jpg|png)$~D',$key) !== 1) return null;
         return Storage::disk('local')->exists($key) ? Storage::disk('local')->get($key) : null;
     }
+    public function delete(string $key): void {
+        if (preg_match('~^covers/[0-9a-f-]{36}\.(jpg|png)$~D',$key) !== 1) return;
+        if (!Storage::disk('local')->delete($key)) throw new RuntimeException('COVER_STORAGE_FAILED');
+    }
 }

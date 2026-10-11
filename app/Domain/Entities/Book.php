@@ -24,6 +24,7 @@ final class Book
         ?int $availableCopies = null,
         public ?string $coverKey = null,
         ?DateTimeImmutable $deletedAt = null,
+        public ?string $version = null,
     ) {
         $this->availableCopies = $availableCopies ?? $totalCopies;
         $this->deletedAt = $deletedAt;

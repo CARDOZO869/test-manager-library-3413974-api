@@ -20,8 +20,19 @@ final readonly class BookCoverService {
         if ($book === null || !$book->isActive()) throw new DomainException('BOOK_NOT_FOUND');
         $extension = $image[2] === IMAGETYPE_JPEG ? 'jpg' : 'png';
         $key = $this->storage->put($bytes, $extension);
+        $previousKey = $book->coverKey;
         $book->coverKey = $key;
         $this->books->save($book);
+        if ($previousKey !== null && $previousKey !== $key) $this->storage->delete($previousKey);
         return $key;
+    }
+    public function remove(string $actorRole, string $bookId): void {
+        if ($actorRole !== 'admin') throw new DomainException('FORBIDDEN');
+        $book = $this->books->findById($bookId);
+        if ($book === null || !$book->isActive()) throw new DomainException('BOOK_NOT_FOUND');
+        $key = $book->coverKey;
+        $book->coverKey = null;
+        $this->books->save($book);
+        if ($key !== null) $this->storage->delete($key);
     }
 }

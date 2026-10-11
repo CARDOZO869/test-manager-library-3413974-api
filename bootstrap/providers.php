@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Providers\AppServiceProvider;
 use App\Providers\LibraryServiceProvider;

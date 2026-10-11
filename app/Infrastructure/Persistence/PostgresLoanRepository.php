@@ -35,7 +35,9 @@ final class PostgresLoanRepository implements LendingRepository, ReturnsReposito
             if ($count + count($loan->items()) > 3) throw new DomainException('MEMBER_LOAN_LIMIT:'.$count);
             $ids = array_map(static fn (Book $book): string => $book->id, $books);
             sort($ids, SORT_STRING);
-            $locked = DB::table('library.book')->whereIn('id',$ids)->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $versions = [];
+            foreach ($books as $book) $versions[$book->id] = $book->version;
+            $locked = DB::table('library.book')->whereIn('id',$ids)->orderBy('id')->get()->keyBy('id');
             foreach ($loan->items() as $item) {
                 $row = $locked->get($item->bookId);
                 if ($row === null || $row->deleted_at !== null) throw new DomainException('BOOK_NOT_FOUND');
@@ -50,8 +52,11 @@ final class PostgresLoanRepository implements LendingRepository, ReturnsReposito
                 'id'=>$loan->id,'member_id'=>$loan->memberId,'loaned_by_user_id'=>$loan->loanedByUserId,
                 'loaned_at'=>$this->date($loan->loanedAt),
             ]);
-            foreach ($loan->items() as $item) {
+            $items = $loan->items();
+            usort($items, static fn($a, $b) => strcmp($a->bookId, $b->bookId));
+            foreach ($items as $item) {
                 $changed = DB::table('library.book')->where('id',$item->bookId)->whereNull('deleted_at')
+                    ->whereRaw('xmin::text = ?', [$versions[$item->bookId]])
                     ->where('available_copies','>',0)->decrement('available_copies');
                 if ($changed !== 1) throw new DomainException('BOOK_OUT_OF_STOCK');
                 DB::table('library.loan_item')->insert([
@@ -74,10 +79,10 @@ final class PostgresLoanRepository implements LendingRepository, ReturnsReposito
         return $loan;
     }
     public function findBook(string $bookId): ?Book {
-        $row = DB::table('library.book')->where('id',$bookId)->first();
+        $row = DB::table('library.book')->selectRaw('*, xmin::text as row_version')->where('id',$bookId)->first();
         return $row === null ? null : new Book($row->id,$row->title,$row->author,new Isbn(trim($row->isbn)),
             $row->category_id,(int)$row->total_copies,(int)$row->available_copies,$row->cover_key,
-            $row->deleted_at === null ? null : new DateTimeImmutable($row->deleted_at));
+            $row->deleted_at === null ? null : new DateTimeImmutable($row->deleted_at), $row->row_version);
     }
     public function commitReturn(string $loanId, string $itemId, DateTimeImmutable $when): void {
         DB::transaction(function () use ($loanId,$itemId,$when): void {

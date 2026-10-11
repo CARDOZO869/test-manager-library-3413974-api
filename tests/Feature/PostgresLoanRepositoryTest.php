@@ -68,7 +68,8 @@ final class PostgresLoanRepositoryTest extends TestCase {
         $loan=new Loan((string)Str::uuid(),$memberId,$userId,$when);
         $loan->addItem((string)Str::uuid(),$bookId,'Libro de prueba','9780306406157','Novela');
         $repo->commitLoan($loan,[$repo->findBook($bookId)]);
-        self::assertCount(1,$repo->overdueItems(new DateTimeImmutable('2026-10-20T12:00:00+00:00')));
-        self::assertSame('Libro de prueba',$repo->overdueItems(new DateTimeImmutable('2026-10-20T12:00:00+00:00'))[0]['book_title']);
+        $rows = array_values(array_filter($repo->overdueItems(new DateTimeImmutable('2026-10-20T12:00:00+00:00')), static fn($row) => $row['loan_id'] === $loan->id));
+        self::assertCount(1, $rows);
+        self::assertSame('Libro de prueba', $rows[0]['book_title']);
     }
 }

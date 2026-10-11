@@ -19,6 +19,16 @@ use App\Infrastructure\Storage\LocalCoverStorage;
 use Illuminate\Support\ServiceProvider;
 final class LibraryServiceProvider extends ServiceProvider {
     public function register(): void {
+        $this->app->singleton(\App\Application\Ports\Clock::class, static function (): \App\Application\Ports\Clock {
+            $fixed = getenv('LIBRARY_CLOCK_NOW');
+            if ($fixed !== false && $fixed !== '') {
+                if (config('app.env') !== 'testing' || config('database.connections.pgsql.database') !== 'manager_library_verification') {
+                    throw new \RuntimeException('Fixed clock is restricted to the isolated verification environment.');
+                }
+                return new \App\Infrastructure\Time\SystemClock(new \DateTimeImmutable($fixed,new \DateTimeZone('UTC')));
+            }
+            return new \App\Infrastructure\Time\SystemClock();
+        });
         $this->app->bind(BookRepository::class,PostgresBookRepository::class);
         $this->app->bind(LendingRepository::class,PostgresLoanRepository::class);
         $this->app->bind(ReturnsRepository::class,PostgresLoanRepository::class);
@@ -27,7 +37,7 @@ final class LibraryServiceProvider extends ServiceProvider {
         $this->app->bind(CoverStorage::class,LocalCoverStorage::class);
         $this->app->bind(MostBorrowedReportReader::class,PostgresMostBorrowedReportReader::class);
         $this->app->singleton(HmacTokenIssuer::class,static function (): HmacTokenIssuer {
-            $secret=(string)config('app.key','');
+            $secret=(string)(config('library.jwt_secret') ?: config('app.key',''));
             if (str_starts_with($secret,'base64:')) {
                 $decoded=base64_decode(substr($secret,7),true);
                 $secret=$decoded===false?'':$decoded;

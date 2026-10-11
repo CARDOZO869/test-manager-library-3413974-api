@@ -10,8 +10,10 @@ final class PostgresMostBorrowedReportReader implements MostBorrowedReportReader
             ->join('library.loan as l','l.id','=','li.loan_id')
             ->where('l.loaned_at','>=',$fromInclusive->format('Y-m-d H:i:s.uP'))
             ->where('l.loaned_at','<',$untilExclusive->format('Y-m-d H:i:s.uP'))
-            ->get(['li.book_id','li.book_title','li.category_name'])
-            ->map(static fn($r):array => ['book_id'=>$r->book_id,'book_title'=>$r->book_title,'category_name'=>$r->category_name])
+            ->selectRaw('li.book_id, li.book_title, li.category_name, COUNT(*) AS times_borrowed')
+            ->groupBy('li.book_id','li.book_title','li.category_name')
+            ->get()
+            ->map(static fn($r):array => ['book_id'=>$r->book_id,'book_title'=>$r->book_title,'category_name'=>$r->category_name,'times_borrowed'=>(int)$r->times_borrowed])
             ->all();
     }
 }

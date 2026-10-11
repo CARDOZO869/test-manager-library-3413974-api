@@ -11,6 +11,7 @@ final class SecurityTest extends TestCase {
         $user = User::librarian('user-1', 'librarian', 'hash');
         $claims = $issuer->verify($issuer->issue($user, 28800));
         self::assertSame('user-1', $claims['sub']);
+        self::assertSame('librarian', $claims['role']);
         self::assertSame(28800, $claims['exp'] - $claims['iat']);
     }
     public function test_invalid_signature_is_rejected(): void {

@@ -23,7 +23,7 @@ final class LoanCoverController {
         return $date->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\\TH:i:s\\Z');
     }
     private function loan(\App\Domain\Entities\Loan $loan): array {
-        $now=new DateTimeImmutable('now',new DateTimeZone('UTC'));
+        $now=app(\App\Application\Ports\Clock::class)->now();
         return ['id'=>$loan->id,'member_id'=>$loan->memberId,'loaned_at'=>$this->utc($loan->loanedAt),
             'status'=>$loan->status($now),'items'=>array_map(fn($item)=>[
                 'id'=>$item->id,'book_id'=>$item->bookId,'book_title'=>$item->bookTitle,
@@ -43,7 +43,7 @@ final class LoanCoverController {
         if (!empty($data['from'])) $query->where('loaned_at','>=',$data['from'].' 00:00:00+00');
         if (!empty($data['to'])) $query->where('loaned_at','<',(new DateTimeImmutable($data['to'],new DateTimeZone('UTC')))->modify('+1 day')->format('Y-m-d').' 00:00:00+00');
         if (!empty($data['status'])) {
-            $now=(new DateTimeImmutable('now',new DateTimeZone('UTC')))->format('Y-m-d H:i:s.uP');
+            $now=(app(\App\Application\Ports\Clock::class)->now())->format('Y-m-d H:i:s.uP');
             if ($data['status']==='closed') $query->whereNotExists(static fn($q)=>$q->selectRaw('1')->from('library.loan_item as li')->whereColumn('li.loan_id','library.loan.id')->whereNull('li.returned_at'));
             if ($data['status']==='overdue') $query->whereExists(static fn($q)=>$q->selectRaw('1')->from('library.loan_item as li')->whereColumn('li.loan_id','library.loan.id')->whereNull('li.returned_at')->where('li.due_at','<',$now));
             if ($data['status']==='open') $query->whereExists(static fn($q)=>$q->selectRaw('1')->from('library.loan_item as li')->whereColumn('li.loan_id','library.loan.id')->whereNull('li.returned_at'))->whereNotExists(static fn($q)=>$q->selectRaw('1')->from('library.loan_item as li')->whereColumn('li.loan_id','library.loan.id')->whereNull('li.returned_at')->where('li.due_at','<',$now));
@@ -70,9 +70,9 @@ final class LoanCoverController {
         if ($bytes===false) throw new DomainException('INVALID_COVER_FILE');
         return ['cover_key'=>$service->upload($role,$id,$bytes)];
     }
-    public function removeCover(Request $request,string $id,BookCatalogService $books): \Illuminate\Http\Response {
+    public function removeCover(Request $request,string $id,BookCoverService $covers): \Illuminate\Http\Response {
         $role=$this->role($request,['admin']);
-        $books->setCoverKey($role,$id,null);
+        $covers->remove($role,$id);
         return response()->noContent();
     }
     public function getCover(Request $request,string $id,BookCatalogService $books,CoverStorage $storage): \Symfony\Component\HttpFoundation\Response {

@@ -16,7 +16,7 @@ final readonly class AuthenticatedUserResolver {
             throw new DomainException('UNAUTHENTICATED',0,$e);
         }
         $user = $this->users->findById($claims['sub']);
-        if ($user === null) throw new DomainException('UNAUTHENTICATED');
+        if ($user === null || $user->role !== $claims['role']) throw new DomainException('UNAUTHENTICATED');
         return $user;
     }
     public function requireRole(User $user, array $roles): void {

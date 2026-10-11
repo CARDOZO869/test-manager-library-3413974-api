@@ -28,6 +28,7 @@ final class BookCoverTest extends TestCase {
                 return $key;
             }
             public function get(string $key): ?string { return $this->files[$key] ?? null; }
+            public function delete(string $key): void { unset($this->files[$key]); }
         };
         return [$repo,$storage,new BookCoverService($repo,$storage)];
     }
@@ -65,5 +66,12 @@ final class BookCoverTest extends TestCase {
         [,,$service]=$this->fixture();
         $this->expectExceptionMessage('INVALID_COVER_SIZE');
         $service->upload('admin','book-1','');
+    }
+    public function test_removal_clears_reference_and_binary(): void {
+        [$repo,$storage,$service]=$this->fixture();
+        $key=$service->upload('admin','book-1',$this->png());
+        $service->remove('admin','book-1');
+        self::assertNull($repo->book->coverKey);
+        self::assertNull($storage->get($key));
     }
 }

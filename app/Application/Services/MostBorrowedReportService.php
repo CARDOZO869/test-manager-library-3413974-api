@@ -32,7 +32,7 @@ final readonly class MostBorrowedReportService {
                     'times_borrowed' => 0,
                 ];
             }
-            $groups[$key]['times_borrowed']++;
+            $groups[$key]['times_borrowed'] += $snapshot['times_borrowed'] ?? 1;
         }
         $rows = array_values($groups);
         usort($rows, static fn (array $a, array $b): int =>

@@ -47,7 +47,7 @@ final readonly class BookCatalogService {
         $book->author = trim($author);
         // Book.categoryId is readonly: category reassignment is performed by
         // reconstructing the aggregate while retaining stock and ISBN.
-        $updated = new Book($book->id, $book->title, $book->author, $book->isbn, $categoryId, $book->totalCopies, $book->availableCopies, $book->coverKey, $book->deletedAt);
+        $updated = new Book($book->id, $book->title, $book->author, $book->isbn, $categoryId, $book->totalCopies, $book->availableCopies, $book->coverKey, $book->deletedAt, $book->version);
         $this->books->save($updated);
         return $updated;
     }

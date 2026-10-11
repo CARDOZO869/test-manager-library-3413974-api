@@ -1,5 +1,9 @@
 # test-manager-library-3413974-api
 
+Implementación local: Laravel 12/PHP 8.4, PostgreSQL 16, JWT 8 h, roles admin/librarian y reglas de biblioteca. Código organizado en Domain, Application, Infrastructure y Http; composición en LibraryServiceProvider. Arranque seguro desde el repositorio infra: `./Start-Library.ps1`. API base `/api/v1`, health `/api/v1/health`. Pruebas PostgreSQL y concurrentes deben usar exclusivamente manager_library_verification; instrucciones en [RUNBOOK](../test-manager-library-3413974-infra/RUNBOOK.md). Resultados y límites en [informe](../test-manager-library-3413974-docs/implementation-laravel-react/FINAL-REPORT.md). No copiar .env sobre archivos existentes ni ejecutar migrate:fresh.
+
+Las instrucciones originales siguientes se conservan como contexto histórico del reto.
+
 > **Prueba técnica · Ficha ADSO 3413974**
 > Horario: de **9:15 a. m. a 3:00 p. m.** (15:00). Después, **feria de presentación** de cada proyecto.
 

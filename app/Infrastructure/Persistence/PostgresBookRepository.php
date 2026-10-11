@@ -10,14 +10,14 @@ final class PostgresBookRepository implements BookRepository {
     private function hydrate(object $row): Book {
         return new Book($row->id, $row->title, $row->author, new Isbn(trim($row->isbn)), $row->category_id,
             (int) $row->total_copies, (int) $row->available_copies, $row->cover_key,
-            $row->deleted_at === null ? null : new DateTimeImmutable($row->deleted_at));
+            $row->deleted_at === null ? null : new DateTimeImmutable($row->deleted_at), $row->row_version);
     }
     public function findById(string $id): ?Book {
-        $row = DB::table('library.book')->where('id', $id)->first();
+        $row = DB::table('library.book')->selectRaw('*, xmin::text as row_version')->where('id', $id)->first();
         return $row === null ? null : $this->hydrate($row);
     }
     public function findActiveByIsbn(string $isbn): ?Book {
-        $row = DB::table('library.book')->where('isbn', $isbn)->whereNull('deleted_at')->first();
+        $row = DB::table('library.book')->selectRaw('*, xmin::text as row_version')->where('isbn', $isbn)->whereNull('deleted_at')->first();
         return $row === null ? null : $this->hydrate($row);
     }
     public function search(?string $query, ?string $categoryId, int $page, int $size): array {
@@ -29,18 +29,26 @@ final class PostgresBookRepository implements BookRepository {
                 ->orWhereRaw("author ILIKE ? ESCAPE '\\'", [$term]));
         }
         $total = (clone $builder)->count();
-        $items = $builder->orderBy('title')->orderBy('id')->offset(($page - 1) * $size)->limit($size)->get();
+        $items = $builder->selectRaw('*, xmin::text as row_version')->orderBy('title')->orderBy('id')->offset(($page - 1) * $size)->limit($size)->get();
         return ['items' => $items->map(fn ($row) => $this->hydrate($row))->all(), 'total' => $total];
     }
     public function hasOpenLoans(string $bookId): bool {
         return DB::table('library.loan_item')->where('book_id', $bookId)->whereNull('returned_at')->exists();
     }
     public function save(Book $book): void {
-        DB::table('library.book')->upsert([[
+        $values = [
             'id' => $book->id, 'title' => $book->title, 'author' => $book->author,
             'isbn' => $book->isbn->value, 'category_id' => $book->categoryId,
             'total_copies' => $book->totalCopies, 'available_copies' => $book->availableCopies,
             'cover_key' => $book->coverKey, 'deleted_at' => $book->deletedAt?->format('Y-m-d H:i:s.uP'),
-        ]], ['id'], ['title','author','isbn','category_id','total_copies','available_copies','cover_key','deleted_at']);
+        ];
+        if ($book->version === null) {
+            DB::table('library.book')->insert($values);
+        } else {
+            unset($values['id']);
+            $updated = DB::table('library.book')->where('id', $book->id)->whereRaw('xmin::text = ?', [$book->version])->update($values);
+            if ($updated !== 1) throw new \DomainException('BOOK_CHANGED_RETRY');
+        }
+        $book->version = DB::table('library.book')->where('id', $book->id)->value(DB::raw('xmin::text'));
     }
 }

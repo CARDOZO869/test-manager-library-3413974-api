@@ -1,7 +1,6 @@
 .git
 .env
 .env.*
-!.env.example
-vendor
+storage
 node_modules
-laravel-temp
+bootstrap/cache/*.php
